@@ -32,6 +32,8 @@ OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC m
   - click an element → highlight it and show its data from the DB (looked up by GlobalId)
   - **equipment panel ↔ 3D**: searchable equipment list (name, type, Tag, storey). Clicking a row highlights the element and flies the camera to it; selecting in 3D selects the row
   - highlight all equipment; hide/show and isolate selected elements
+  - **spatial tree → 3D**: clicking a storey or space in the tree isolates its elements in the viewer
+  - viewer opens the model version selected in the model list (default: latest processed)
 
 **Secondary goals**
 
@@ -55,6 +57,7 @@ OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC m
 - As a facility user, I want to search the equipment list and click a pump, so that the viewer flies to it and highlights it.
 - As a facility user, I want to click any element in 3D and see its IFC type, Tag, storey, and property sets.
 - As a facility user, I want to highlight all equipment, or isolate a selection, so that MEP items stand out from walls and slabs.
+- As a facility user, I want to click "Level 03" in the spatial tree so that only that storey's elements are shown in 3D.
 - As a BIM user, I want re-uploading a revised file to create version 2 without overwriting version 1.
 
 **Edge cases**
@@ -67,6 +70,8 @@ OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC m
 - Viewer opened for a model not yet `processed` → disabled; `failed` → shows error, no viewer.
 - Element clicked in 3D with no DB row (e.g. non-product geometry) → panel shows "No data".
 - Browser without WebGL2 → message instead of viewer.
+- Equipment without geometry (no `Representation`) → listed with a "no geometry" badge; row click shows properties only.
+- More than 1000 equipment → panel pages through the elements API until complete.
 
 ## Success Criteria
 
@@ -75,7 +80,8 @@ OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC m
 - [ ] Validation report covers all design-doc checks; synthetic defect fixture yields exactly the expected findings.
 - [ ] Spatial tree matches the demo model's structure.
 - [ ] Demo model renders in Chrome/Firefox in < 15 s on a typical laptop and navigates smoothly.
-- [ ] Clicking an equipment row highlights and frames the matching 3D element; clicking it in 3D selects the same row (GlobalId round-trip, 100% of equipment in demo model).
+- [ ] Clicking an equipment row highlights and frames the matching 3D element; clicking it in 3D selects the same row (GlobalId round-trip for 100% of demo-model equipment that has geometry).
+- [ ] Clicking a storey in the spatial tree isolates exactly that storey's elements in 3D; "show all" restores.
 - [ ] Clicking any element shows its DB properties (type, Tag, storey, psets).
 - [ ] "Highlight equipment", hide, isolate, and show-all work.
 - [ ] Version 2 upload leaves version 1 data and viewer intact.
@@ -99,6 +105,8 @@ OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC m
 - No auth in MVP. Projects unique by name. Upload limit 200 MB.
 - Validation ERRORs don't fail processing; only parse failure / unsupported schema / worker error → `failed`.
 - Demo model: public IFC4 model with storeys, MEP equipment, psets (picked in planning). Tests use synthetic IFCs generated with IfcOpenShell.
+- No delete of projects/models in slice 1.
+- Single-user demo load: the worker processes one model at a time (uvicorn single worker); concurrent uploads wait in their goroutines up to the 10-min timeout.
 - Feature key kept as `ifc-ingest` (docs/task already created); scope now includes the viewer.
 
 ## Questions & Open Items

@@ -86,6 +86,7 @@ CREATE TABLE ifc_elements (
   storey_global_id   text,            -- nearest IfcBuildingStorey ancestor
   is_spatial         bool NOT NULL,   -- Project/Site/Building/Storey/Space
   is_equipment       bool NOT NULL,
+  has_geometry       bool NOT NULL,   -- element has a Representation (renderable)
   properties         jsonb NOT NULL DEFAULT '{}',  -- {"Pset_X": {"Prop": value}}
   materials          jsonb NOT NULL DEFAULT '[]',  -- ["Steel", ...]
   UNIQUE (model_id, global_id)
@@ -139,7 +140,7 @@ Go API (JSON, no auth):
 | GET | `/api/models/{id}/file` | original IFC (`application/octet-stream`), only when `processed`; served with `http.ServeContent` (Range/ETag) |
 | GET | `/api/models/{id}/elements/{globalId}` | one element with psets/materials; 404 if absent (viewer click → details) |
 | GET | `/api/models/{id}/spatial-tree` | nested tree of spatial elements, each with element counts |
-| GET | `/api/models/{id}/elements` | query: `equipment=true`, `storey=<gid>`, `type=IfcPump`, `limit`/`offset` (default 100, max 1000) |
+| GET | `/api/models/{id}/elements` | query: `equipment=true`, `storey=<gid>`, `parent=<gid>`, `type=IfcPump`, `limit`/`offset` (default 100, max 1000) |
 
 Internal Go → worker:
 
@@ -170,7 +171,8 @@ Internal Go → worker:
   - Panel → 3D: GlobalIds → localIds via the reverse GUID lookup → `Highlighter.highlightByID` + camera fit to the item's bounding box.
   - `Hider` for hide / isolate / show all. "Highlight equipment" uses a second highlighter style over all equipment GlobalIds from `/elements?equipment=true`.
   - Exact v3 method names are confirmed against the installed typings during implementation (planning task: viewer spike).
-- **`EquipmentPanel`**: searchable list from `/elements?equipment=true` (client-side filter on name/Tag/type/storey), selection shared with the viewer through one `selectedGlobalId` state in the page.
+- **`SpatialTree` → viewer**: storey/space click → GlobalIds of elements whose `storey_global_id` (storey) or `parent_global_id` (space) matches, from `/elements?storey=` → `Hider.isolate`.
+- **`EquipmentPanel`**: searchable list from `/elements?equipment=true`, fetching all pages (client-side filter on name/Tag/type/storey; "no geometry" badge from `has_geometry`; ponytail: fine to ~10k equipment, server-side search when larger), selection shared with the viewer through one `selectedGlobalId` state in the page.
 - **`ElementPanel`**: type, name, Tag, storey, psets table.
 
 ## Design Decisions

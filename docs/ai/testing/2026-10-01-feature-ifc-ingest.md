@@ -28,6 +28,7 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] Property sets from type object merged under occurrence values (occurrence wins)
 - [ ] Materials extracted for element with single material and with a layer set
 - [ ] Element with no container → `parent_global_id` null
+- [ ] `has_geometry` true for element with Representation, false without
 
 ### ifc-worker: validation
 
@@ -67,6 +68,8 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] Equipment row click → highlight + camera fit invoked with matching localIds
 - [ ] 3D selection of equipment selects matching row; non-equipment selection clears row
 - [ ] Equipment search filters by name/Tag/type/storey
+- [ ] Equipment panel fetches all pages when > 1000 equipment; no-geometry row shows badge and skips camera fit
+- [ ] Storey click in spatial tree isolates that storey's localIds; space click isolates space children; show all restores
 - [ ] Viewer disabled while `processing`; error shown for `failed`; WebGL2 missing → message
 
 ## Integration Tests

@@ -29,6 +29,8 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] Materials extracted for element with single material and with a layer set
 - [ ] Element with no container → `parent_global_id` null
 - [ ] `has_geometry` true for element with Representation, false without
+- [ ] `express_id` equals the STEP id of the source entity
+- [ ] Part of an `IfcElementAssembly` contained in a storey gets that storey's `storey_global_id`
 
 ### ifc-worker: validation
 
@@ -52,8 +54,11 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] Upload → 202, row `processing`, file at `{model_id}.ifc`
 - [ ] Versions increment per project (1, 2) and are independent across projects
 - [ ] Worker 200 → `processed` with schema/count/validation stored
-- [ ] Worker 422 / 5xx / timeout → `failed` with error
+- [ ] Worker 422 / 5xx / timeout → `failed` with error, and the model's `ifc_elements` deleted
+- [ ] `/process` called with `model_id` only; worker opens `/data/uploads/{model_id}.ifc`
+- [ ] Upload 202 has `Location` header; all errors return `{error}`
 - [ ] Startup sweep marks stale `processing` as `failed: interrupted`
+- [ ] `/global-ids` applies the same filters, returns uncapped `string[]`
 - [ ] Elements endpoint filters (`equipment`, `storey`, `type`) and pagination limits (max 1000)
 - [ ] Spatial-tree endpoint nests correctly
 
@@ -63,6 +68,8 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] `/models/{id}/elements/{globalId}` returns psets; 404 for unknown GlobalId
 
 ### web: viewer logic (Vitest, That Open mocked at module boundary)
+
+- [ ] `idMap` round-trips GlobalId ↔ localId for both strategies (fragments GUID lookup, `express_id` fallback)
 
 - [ ] localId → GlobalId → `/elements/{gid}` called on 3D selection; panel shows "No data" on 404
 - [ ] Equipment row click → highlight + camera fit invoked with matching localIds

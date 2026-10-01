@@ -4,11 +4,11 @@ title: Requirements & Problem Understanding
 description: Clarify the problem space, gather requirements, and define success criteria
 ---
 
-# Requirements — `ifc-ingest` (Slice 1 of OpenBIM AssetOps MVP)
+# Requirements — `ifc-ingest` (Slice 1 of MEP Tracking MVP)
 
 Source spec: `openbim_assetops_requirements.md` (§4.1, §5, §6, §9, §10, §26, §27).
 
-OpenBIM AssetOps is an **MEP equipment management system**: equipment from IFC models is tracked and visualized in the browser. Slice 1 delivers the first end-to-end, visual workflow: upload an IFC → it is processed in the background → open it in a That Open 3D viewer in the browser → find, select, and inspect equipment.
+**MEP Tracking** (repo `mep-tracking`, originally specced as "OpenBIM AssetOps") is an **OpenBIM equipment management system for MEP**: equipment from IFC models is tracked and visualized in the browser. Slice 1 delivers the first end-to-end, visual workflow: upload an IFC → it is processed in the background → open it in a That Open 3D viewer in the browser → find, select, and inspect equipment.
 
 ## Problem Statement
 

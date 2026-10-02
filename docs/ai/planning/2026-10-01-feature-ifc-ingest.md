@@ -10,7 +10,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 - [x] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
 - [x] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
-- [ ] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
+- [x] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
 - [ ] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
 
 ## Task Breakdown
@@ -33,11 +33,11 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 3: Web + viewer
 
-- [ ] 3.1 **Viewer spike** (time-box ½ day): That Open v3 load IFC from ArrayBuffer with local WASM + fragments worker in Vite; confirm click → localId, GUID lookup API, highlight-by-id, Hider, camera fit. Decide `idMap` strategy. *Output:* notes in implementation doc.
-- [ ] 3.2 Web shell: Vite React TS, `ProjectPicker`, `UploadForm`, `ModelList` with 2 s polling, `ValidationReport`. *Tests:* polling/state tests.
-- [ ] 3.3 `ModelViewer` + `idMap.ts` + `ElementPanel` (click → details, "No data", WebGL2 check, disabled unless processed). *Tests:* web viewer logic cases.
-- [ ] 3.4 `EquipmentPanel` (all pages, search, no-geometry badge) ↔ viewer selection; highlight-all-equipment; hide/isolate/show all. *Tests:* panel cases.
-- [ ] 3.5 `SpatialTree` + storey/space isolate. *Tests:* tree isolate cases.
+- [x] 3.1 **Viewer spike** (time-box ½ day): That Open v3 load IFC from ArrayBuffer with local WASM + fragments worker in Vite; confirm click → localId, GUID lookup API, highlight-by-id, Hider, camera fit. Decide `idMap` strategy. *Output:* notes in implementation doc.
+- [x] 3.2 Web shell: Vite React TS, `ProjectPicker`, `UploadForm`, `ModelList` with 2 s polling, `ValidationReport`. *Tests:* polling/state tests.
+- [x] 3.3 `ModelViewer` + `idMap.ts` + `ElementPanel` (click → details, "No data", WebGL2 check, disabled unless processed). *Tests:* web viewer logic cases.
+- [x] 3.4 `EquipmentPanel` (all pages, search, no-geometry badge) ↔ viewer selection; highlight-all-equipment; hide/isolate/show all. *Tests:* panel cases.
+- [x] 3.5 `SpatialTree` + storey/space isolate. *Tests:* tree isolate cases.
 
 ### Phase 4: Integration & polish
 
@@ -79,3 +79,5 @@ Buffer: +30% for That Open v3 API surprises.
 ## Progress Summary
 
 *2026-10-02:* Foundation and ingest are done (M1, M2). The backend is one FastAPI service; 73 tests pass at 100% coverage, and a live smoke test through the real process pool processed the demo plant with the expected findings. Scope changes: Go was dropped in favour of all-Python (user decision), the Makefile was dropped, and the demo model is generated rather than downloaded. Next is web + viewer (3.1 spike first), where the main risk is the That Open v3 API surface; the `express_id` fallback is already stored.
+
+*2026-10-02 (later):* Web + viewer done (M3). The trial build confirmed the That Open v3 API: the fragments GUID lookup resolves 59/59 demo elements, and localId equals `express_id`, so the GUID lookup is primary and `express_id` is a proven fallback. Two surprises were fixed: web-ifc had to be pinned to 0.0.77 (That Open 3.4 is built against it; 0.0.78 changed `StreamMeshes`), and the web app is published on host port 3000 because 5173 was already taken on this machine. Remaining: 4.1 compose integration, 4.2 Playwright E2E, 4.3 README.

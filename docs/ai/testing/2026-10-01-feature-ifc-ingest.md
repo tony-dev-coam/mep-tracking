@@ -70,15 +70,15 @@ description: Define testing approach, test cases, and quality assurance
 
 ### web: viewer logic (Vitest, That Open mocked at module boundary)
 
-- [ ] `idMap` round-trips GlobalId ↔ localId for both strategies (fragments GUID lookup, `express_id` fallback)
+- [x] GlobalId ↔ localId mapping: verified in the browser against demo-plant (59/59 resolved, round-trip exact, localId = `express_id` for all). No `idMap` module: the mapping lives inside `viewer/engine.ts`, the only That Open boundary, and isn't unit-tested (it delegates to fragments).
 
-- [ ] localId → GlobalId → `/elements/{gid}` called on 3D selection; panel shows "No data" on 404
-- [ ] Equipment row click → highlight + camera fit invoked with matching localIds
-- [ ] 3D selection of equipment selects matching row; non-equipment selection clears row
-- [ ] Equipment search filters by name/Tag/type/storey
-- [ ] Equipment panel fetches all pages when > 1000 equipment; no-geometry row shows badge and skips camera fit
-- [ ] Storey click in spatial tree isolates that storey's localIds; space click isolates space children; show all restores
-- [ ] Viewer disabled while `processing`; error shown for `failed`; WebGL2 missing → message
+- [x] localId → GlobalId → `/elements/{gid}` called on 3D selection; panel shows "No data" on 404
+- [x] Equipment row click → highlight + camera fit invoked with matching localIds
+- [x] 3D selection of equipment selects matching row; non-equipment selection clears row
+- [x] Equipment search filters by name/Tag/type/storey
+- [x] Equipment panel fetches all pages when > 1000 equipment (`api.test.ts`, 2345 rows → 3 requests); no-geometry row shows badge and skips camera fit
+- [x] Storey click in spatial tree isolates that storey's localIds; space click isolates space children; show all restores
+- [x] Viewer disabled while `processing`; error shown for `failed`; WebGL2 missing → message
 
 ## Integration Tests
 
@@ -104,12 +104,16 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Test Reporting & Coverage
 
-**Backend (2026-10-02):** `docker compose run --rm api pytest -q --cov=app` → 73 passed, **100%** line coverage of `app/` (257 statements). Manual smoke: demo-plant.ifc uploaded via HTTP through the real `ProcessPoolExecutor` → `processed`, 47 elements, 29 equipment, findings = planted defects.
+**Web (2026-10-02):** `cd web && npx vitest run` → 18 passed (App integration with That Open mocked at `viewer/engine`, API client paging/errors). Typecheck + `vite build` clean.
+
+**Backend (2026-10-02):** `docker compose run --rm api pytest -q --cov=app` → 73 passed (strict: warnings are errors), **100%** line coverage of `app/` (257 statements). Manual smoke: demo-plant.ifc uploaded via HTTP through the real `ProcessPoolExecutor` → `processed`, 47 elements, 29 equipment, findings = planted defects.
 
 - `docker compose run --rm api pytest --cov=app --cov-report=term-missing`
 - Record results and gaps here after Phase 8.
 
 ## Manual Testing
+
+**2026-10-02, Chrome via automation:** the demo plant loads and renders, and "Highlight equipment" colours equipment orange. Schedule row click → title block filled and row selected; toolbar state updates. **Not verifiable via automation:** camera framing and selection repaint, because the automated tab reports `document.hidden`, which pauses requestAnimationFrame. Check these by hand in a normal tab.
 
 - Upload form keyboard-accessible; status changes announced (`aria-live` on status cell).
 - Chrome + Firefox latest; viewer smoothness on a laptop GPU.

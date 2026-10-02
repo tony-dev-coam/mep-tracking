@@ -15,7 +15,7 @@ def check(code, ok, message, count=0, global_ids=(), fail="WARNING"):
 
 
 def offenders(code, message, global_ids, fail="WARNING"):
-    return check(code, not global_ids, message, len(global_ids), global_ids, fail)
+    return check(code, not global_ids, f"{message}: {len(global_ids)}", len(global_ids), global_ids, fail)
 
 
 def has_manufacturer(row) -> bool:

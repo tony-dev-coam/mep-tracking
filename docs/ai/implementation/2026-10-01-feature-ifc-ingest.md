@@ -12,8 +12,17 @@ description: Technical implementation notes, patterns, and code guidelines
 docker compose up -d postgres
 docker compose build api
 docker compose run --rm api pytest -q            # tests (uses DB mep_test, recreated per session)
-docker compose up api                           # API on :8000, OpenAPI at /docs
+docker compose up                               # web on http://localhost:3000, API on :8000 (OpenAPI at /docs)
+cd web && npm ci && npx vitest run              # web tests (or run them in the web container)
 docker compose run --rm -v "$PWD/samples:/samples" api python samples_demo_plant.py /samples/demo-plant.ifc
+web/
+  vite.config.ts          /api proxy (API_URL), vitest jsdom
+  package.json            `assets` script copies web-ifc WASM + fragments worker into public/ (gitignored)
+  src/api.ts              typed fetch client; equipment() pages through all results
+  src/viewer/engine.ts    Viewer: the only That Open module; speaks GlobalIds outside
+  src/App.tsx             state: project, models (+2 s polling), open model, selection, viewer ref
+  src/components/         ProjectBar, ModelList, ValidationReport, SpatialTree, EquipmentSchedule, ElementPanel, ModelViewer
+  src/App.test.tsx        integration tests, engine mocked at module boundary
 ```
 
 Local Python is 3.9, so everything Python runs in the `api` container (python:3.12-slim). `./api` is bind-mounted, so code edits need no rebuild.
@@ -54,6 +63,19 @@ samples/demo-plant.ifc
 - Version race on concurrent uploads to one project → UNIQUE violation (500). Marked `ponytail:`; retry if multi-user.
 - **Deviation from design:** routes return plain dict rows rather than Pydantic response models. The OpenAPI schemas are therefore untyped; add response models if the API gets external consumers.
 - `httpx2` is used for TestClient (Starlette deprecates `httpx`).
+
+### Web / viewer
+
+- **That Open v3 facts (from the trial build):** `FragmentsManager.init('/fragments-worker.mjs')`, `IfcLoader.setup({autoSetWasm:false, wasm:{path:'/wasm/', absolute:true}})`, `loader.load(bytes, false, name)` → `FragmentsModel`; `model.useCamera`, `scene.add(model.object)`, `core.update(true)` on camera rest. `model.getLocalIdsByGuids / getGuidsByLocalIds` do the GlobalId mapping. `Highlighter.highlightByID(style, ModelIdMap)`, `Hider.isolate/set`, `camera.fitToItems(map)`.
+- **web-ifc pinned to exactly 0.0.77.** That Open 3.4 peers `>=0.0.77`, but 0.0.78 changed `StreamMeshes` (BindingError). After changing it, clear `node_modules/.vite`.
+- Default select colour is That Open lime; set to interface blue `#2F6FB5`. Equipment highlight style is orange `#E8711A`, priority 1.
+- Camera `fitToItems` is not awaited: it animates per frame, and frames pause in hidden tabs, which would block "ready".
+- StrictMode double-mount: `ModelViewer` cancels a late load into a disposed viewer.
+- 3D selection only updates panels (`showElement`), while schedule selection also calls `viewer.select`, so there is no echo loop. `highlightByID` on the select style also fires `onHighlight`; that just re-fetches the same element (harmless).
+- **Deviation from design:** no separate `idMap.ts`. The fragments GUID API worked, so the mapping is two private methods in `engine.ts`. The `express_id` fallback is unused but proven (localId = express_id).
+- Bundle: ~6.8 MB JS (web-ifc, three, That Open). Follow-up: lazy-load the viewer chunk.
+- Compose: `web` runs `node:24-slim` with `npm ci && vite`, node_modules in a named volume (rolldown has platform binaries), published on **host port 3000** (5173 is often taken by other Vite apps). The API runs with `--reload` in compose; the image CMD doesn't.
+- Validation offender messages now carry the count (`"Equipment without manufacturer: 2"`), so the UI renders `message` as is.
 
 ## Demo models
 

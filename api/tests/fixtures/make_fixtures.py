@@ -177,7 +177,8 @@ def build_corrupt(path) -> str:
 
 def build_unsupported_schema(path) -> str:
     build_clean(path)
-    text = open(path).read().replace("FILE_SCHEMA(('IFC4'))", "FILE_SCHEMA(('IFC2X2_FINAL'))")
+    with open(path) as fh:
+        text = fh.read().replace("FILE_SCHEMA(('IFC4'))", "FILE_SCHEMA(('IFC2X2_FINAL'))")
     with open(path, "w") as fh:
         fh.write(text)
     return str(path)

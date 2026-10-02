@@ -109,7 +109,7 @@ def test_unknown_model_404(client):
     assert client.get("/api/models/00000000-0000-0000-0000-000000000000").status_code == 404
 
 
-def test_startup_marks_stale_processing_models_failed(client, db):
+def test_startup_marks_stale_processing_models_failed(db):
     from fastapi.testclient import TestClient
 
     from app.main import app

@@ -1,0 +1,7 @@
+.claude/
+__pycache__/
+.pytest_cache/
+.coverage
+node_modules/
+dist/
+api/tests/fixtures/*.ifc

@@ -8,7 +8,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Milestones
 
-- [ ] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
+- [x] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
 - [ ] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
 - [ ] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
 - [ ] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
@@ -17,10 +17,10 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 1: Foundation
 
-- [ ] 1.1 Repo layout + `docker-compose.yml` (postgres:16, api, web, `uploads` volume), `.gitignore`, Makefile targets `up`, `test`. *Validation:* `docker compose up` healthy.
-- [ ] 1.2 FastAPI skeleton: Dockerfile (python:3.12 + `ifcopenshell`), settings from env, psycopg 3 pool, Alembic migration with the design schema (run on container start), `/health`, `{error}` exception handlers, pytest setup. *Validation:* migration applies; `/health` 200.
-- [ ] 1.4 Synthetic fixtures `make_fixtures.py` (clean, defects, assembly, no-geometry element, corrupt). *Tests:* fixture-based ifc tests.
-- [ ] 1.5 Demo model: pick a public IFC4 MEP sample with storeys/equipment/psets → `samples/`, document source + licence. *Risk:* licence/size.
+- [x] 1.1 Repo layout + `docker-compose.yml` (postgres:16, api, web, `uploads` volume), `.gitignore`. *Validation:* `docker compose up` healthy. *Done:* postgres + api; `web` service added in 3.2. Makefile dropped (compose commands suffice).
+- [x] 1.2 FastAPI skeleton: Dockerfile (python:3.12 + `ifcopenshell`), settings from env, psycopg 3 pool, Alembic migration with the design schema (run on container start), `/health`, `{error}` exception handlers, pytest setup. *Validation:* migration applies; `/health` 200.
+- [x] 1.4 Synthetic fixtures `make_fixtures.py` (clean, defects, assembly, no-geometry element, corrupt). *Tests:* fixture-based ifc tests.
+- [x] 1.5 Demo models: generated `samples/demo-plant.ifc` (IFC4, 3 storeys, 29 equipment, deliberate defects; `api/samples_demo_plant.py`) committed. Real-world Duplex MEP (IFC2X3, WBDG Common BIM Files) documented as a manual download (WBDG blocks scripted downloads; licence unstated, so not committed). buildingSMART IFC4 Simple-Scene HVAC rejected: 2 terminals, no psets.
 
 ### Phase 2: Ingest
 

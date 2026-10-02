@@ -26,3 +26,7 @@ dist-ssr
 # copied from node_modules by `npm run assets`
 public/wasm/
 public/fragments-worker.mjs
+
+# playwright
+test-results/
+playwright-report/

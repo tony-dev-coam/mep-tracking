@@ -80,6 +80,9 @@ samples/demo-plant.ifc
   - Viewer: `frameAll`, `frameSelection`; a double-click on the canvas frames the current selection.
   - Shortcuts live in `App` behind a ref map (I, H, A, F, Shift+F, Esc), registered only while a model is open. They're skipped when the event target is inside an input/textarea/select/contenteditable or a modifier key is held.
   - `StoreyNavigator` and `SpatialTree` share `isolatedId`; clicking the active node again calls show all. Isolation never moves the camera. Ceiling cut deferred to slice 3 (needs Clipper and storey elevations).
+- **Model list race (found by E2E):** switching project starts a list fetch; an upload finishing first was then overwritten by the stale empty list. `loadModels` now uses a request sequence (latest request wins), and upload reloads the list from the server instead of prepending locally.
+- **E2E hook:** in dev builds `ModelViewer` sets `window.__mep = { viewer }`; Playwright uses viewer internals (`model.getLocalIdsByGuids`, `getMergedBox`, camera) to project an element to screen coordinates and click it. Production builds don't expose it.
+- Vitest is limited to `src/**/*.test.*` so it doesn't pick up `e2e/*.spec.ts`.
 - Validation offender messages now carry the count (`"Equipment without manufacturer: 2"`), so the UI renders `message` as is.
 
 ## Demo models

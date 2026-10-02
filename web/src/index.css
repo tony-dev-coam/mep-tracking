@@ -88,7 +88,8 @@ button[aria-pressed='true'] .dot { color: #fff; }
 
 .summary { display: flex; gap: 0.8rem; margin: 0 0 0.5rem; font-weight: 500; }
 .checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
-.checks .mark { display: inline-block; width: 1.2rem; font-weight: 600; }
+.checks li { display: grid; grid-template-columns: 1.2rem 1fr; align-items: baseline; }
+.checks .mark { font-weight: 600; }
 .sev-PASS { color: var(--pass); }
 .sev-WARNING { color: var(--warn); }
 .sev-ERROR { color: var(--error); }

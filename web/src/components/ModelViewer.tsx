@@ -24,6 +24,8 @@ export function ModelViewer({ model, onReady }: Props) {
         if (cancelled) return
         setLoading(false)
         onReady(viewer)
+        // E2E hook (dev builds only): Playwright reaches the viewer to check GlobalId mapping.
+        if (import.meta.env.DEV) (window as unknown as { __mep: unknown }).__mep = { viewer }
       })
       .catch((e) => {
         if (cancelled) return

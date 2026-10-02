@@ -11,7 +11,8 @@
     "assets": "mkdir -p public/wasm && cp node_modules/web-ifc/web-ifc.wasm node_modules/web-ifc/web-ifc-mt.wasm public/wasm/ && cp node_modules/@thatopen/fragments/dist/Worker/worker.mjs public/fragments-worker.mjs",
     "predev": "npm run assets",
     "prebuild": "npm run assets",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@thatopen/components": "^3.4.8",
@@ -24,6 +25,7 @@
     "web-ifc": "0.0.77"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",

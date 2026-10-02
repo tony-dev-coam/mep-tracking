@@ -90,18 +90,26 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Integration Tests
 
-- [ ] compose stack: upload synthetic defect fixture → poll → `processed`, validation matches expected
-- [ ] Upload corrupt file → `failed`; API `/health` still OK
-- [ ] Upload v2 to same project → v1 elements unchanged
-- [ ] Demo model end-to-end: spatial tree storeys match file; equipment count > 0
+- [x] compose stack: upload synthetic defect fixture → poll → `processed`, validation matches expected
+- [x] Upload corrupt file → `failed`; API `/health` still OK
+- [x] Upload v2 to same project → v1 elements unchanged
+- [x] Demo model end-to-end: spatial tree storeys match file; equipment count > 0
 
 ## End-to-End Tests
 
-- [ ] Browser: create project → upload demo IFC → status flips to Processed without reload → validation report, spatial tree, equipment table render
-- [ ] Browser: upload corrupt file → Failed with message shown
-- [ ] Browser: open demo model in 3D → renders; click equipment row → element highlighted and framed; click element in 3D → row selected + properties shown
-- [ ] Browser: highlight all equipment, isolate selection, hide, show all
-- [ ] Browser: GlobalId round-trip for every equipment element of demo model (scripted check in Playwright via exposed viewer test hook)
+- [x] Browser: create project → upload demo IFC → status flips to Processed without reload → validation report, spatial tree, equipment table render
+- [x] Corrupt upload → Failed with message: covered by the integration test and the web unit test (not repeated in E2E)
+- [x] Browser: open demo model in 3D → renders; click equipment row → element highlighted and framed; click element in 3D → row selected + properties shown
+- [x] Browser: highlight all equipment, isolate selection, hide, show all
+- [x] Browser: GlobalId round-trip for every equipment element of demo model (scripted check in Playwright via exposed viewer test hook)
+- [x] Browser: real canvas click on the chiller (bbox centre projected to screen) selects the CH-01 schedule row
+- [x] Browser: clickable finding selects 2 elements; storey navigator isolates Level 03, `A` releases
+
+**Integration** (`api/tests/integration/test_stack.py`, skipped unless `STACK_URL` is set): defects fixture findings, corrupt → failed + healthy, v2 leaves v1, 3 concurrent uploads all finish (executor queue), demo model end to end incl. file download. **5 passed** against the live compose stack.
+
+**E2E** (`web/e2e/viewer.spec.ts`, Playwright 1.63, headless Chromium with SwiftShader WebGL): one journey, ~12 s, **passed 3/3 consecutive runs** after the project-selection wait was added. It also writes `docs/images/mep-tracking.png`.
+
+**Unit regression added from E2E:** a stale model-list response must not overwrite a fresh upload (`App.test.tsx`).
 
 ## Test Data
 

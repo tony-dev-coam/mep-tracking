@@ -11,7 +11,7 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
 - [x] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
 - [x] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
-- [ ] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
+- [x] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
 
 ## Task Breakdown
 
@@ -45,9 +45,9 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 4: Integration & polish
 
-- [ ] 4.1 Integration tests on compose stack (defects fixture, corrupt, v2, demo model).
-- [ ] 4.2 Playwright E2E (upload → processed → viewer round-trip via test hook).
-- [ ] 4.3 README: positioning, architecture diagram, run instructions, demo model credit.
+- [x] 4.1 Integration tests on compose stack (defects fixture, corrupt, v2, demo model).
+- [x] 4.2 Playwright E2E (upload → processed → viewer round-trip via test hook).
+- [x] 4.3 README: positioning, architecture diagram, run instructions, demo model credit.
 
 ## Dependencies
 
@@ -87,3 +87,5 @@ Buffer: +30% for That Open v3 API surprises.
 *2026-10-02 (later):* Web + viewer done (M3). The trial build confirmed the That Open v3 API: the fragments GUID lookup resolves 59/59 demo elements, and localId equals `express_id`, so the GUID lookup is primary and `express_id` is a proven fallback. Two surprises were fixed: web-ifc had to be pinned to 0.0.77 (That Open 3.4 is built against it; 0.0.78 changed `StreamMeshes`), and the web app is published on host port 3000 because 5173 was already taken on this machine. Remaining: 4.1 compose integration, 4.2 Playwright E2E, 4.3 README.
 
 *2026-10-02 (quick wins):* Added from the ifc-viewx review: keyboard shortcuts plus double-click to frame (3.6), a storey navigator with toggle and stepping shared with the spatial tree (3.7), and clickable validation findings with list selection (3.8). The rest of the ifc-viewx ideas are recorded against slices 3–6 in the requirements roadmap.
+
+*2026-10-02 (phase 4):* All tasks done. Five integration tests run against the live stack (real process pool), and one Playwright E2E covers upload → processed → 3D load, a GlobalId round-trip for all 29 equipment, a real canvas click selecting the schedule row, findings, the storey navigator, and the README screenshot. The E2E surfaced a real race (a stale model-list response overwrote a fresh upload), fixed with latest-request-wins plus a unit test, and a test race (uploading before the new project was selected). README written. Next: dev-lifecycle phase 7 (check implementation), then phases 8 and 9.

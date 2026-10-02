@@ -49,13 +49,19 @@ export default function App() {
     })
   }, [])
 
+  // Latest request wins: an upload can finish before the project's first list load returns.
+  const modelsRequest = useRef(0)
+  const loadModels = useCallback(async (pid: string, selectId?: string) => {
+    const seq = ++modelsRequest.current
+    const ms = await api.models(pid)
+    if (seq !== modelsRequest.current) return
+    setModels(ms)
+    setModelId(selectId ?? (ms.find((m) => m.status === 'processed') ?? ms[0])?.id ?? null)
+  }, [])
+
   useEffect(() => {
-    if (!projectId) return
-    api.models(projectId).then((ms) => {
-      setModels(ms)
-      setModelId((ms.find((m) => m.status === 'processed') ?? ms[0])?.id ?? null)
-    })
-  }, [projectId])
+    if (projectId) void loadModels(projectId)
+  }, [projectId, loadModels])
 
   // Poll each processing model until it settles.
   const processingIds = models.filter((m) => m.status === 'processing').map((m) => m.id).join(',')
@@ -172,8 +178,7 @@ export default function App() {
   async function upload(file: File) {
     if (!projectId) return
     const m = await api.upload(projectId, file)
-    setModels((ms) => [m, ...ms])
-    setModelId(m.id)
+    await loadModels(projectId, m.id)
   }
 
   const selectedEquipment =

@@ -229,6 +229,29 @@ describe('projects and uploads', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Project name already exists')
   })
 
+  it('keeps a model uploaded while the new project\'s model list is still loading', async () => {
+    let releaseList: (v: unknown) => void = () => {}
+    const slowList = new Promise((r) => (releaseList = r))
+    let uploaded = false
+    mockApi({
+      '/api/projects': [],
+      'POST /api/projects': { id: 'p2', name: 'Plant B', created_at: '' },
+      // First (slow) list call returns the stale empty list after the upload has finished.
+      '/api/projects/p2/models': async () => (uploaded ? [model({ project_id: 'p2', status: 'processing', validation: null })] : (await slowList, [])),
+      'POST /api/projects/p2/models': () => {
+        uploaded = true
+        return model({ project_id: 'p2', status: 'processing', validation: null })
+      },
+      '/api/models/m1': model({ status: 'processing', validation: null }),
+    })
+    render(<App />)
+    await userEvent.type(await screen.findByRole('textbox', { name: 'New project' }), 'Plant B')
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await userEvent.upload(screen.getByLabelText('Upload IFC'), new File(['x'], 'demo.ifc'))
+    await act(async () => releaseList(null))
+    expect(await screen.findByRole('status', { name: 'v1 status' })).toHaveTextContent('processing')
+  })
+
   it('uploads and polls status every 2 s until processed', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let status = 'processing'

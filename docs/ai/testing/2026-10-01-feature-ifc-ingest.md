@@ -80,6 +80,14 @@ description: Define testing approach, test cases, and quality assurance
 - [x] Storey click in spatial tree isolates that storey's localIds; space click isolates space children; show all restores
 - [x] Viewer disabled while `processing`; error shown for `failed`; WebGL2 missing → message
 
+### web: quick wins from ifc-viewx
+
+- [x] I / H / A / Esc act on the selection; F frames all, Shift+F frames the selection
+- [x] Shortcuts ignored while typing in a field; selection shortcuts no-op without a selection
+- [x] Storey navigator: isolate, second click releases (show all), ▲/▼ step and disable at the ends, camera not moved
+- [x] Clicking a validation finding selects and frames all its elements; panel shows "N elements selected"; I isolates them; passing checks aren't clickable
+- [x] Browser (manual, via automation): navigator toggles and steps, findings select 2 elements, A releases the isolated storey
+
 ## Integration Tests
 
 - [ ] compose stack: upload synthetic defect fixture → poll → `processed`, validation matches expected

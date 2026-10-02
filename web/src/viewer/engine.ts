@@ -10,7 +10,7 @@ import * as THREE from 'three'
 const SELECT = 'select'
 const EQUIPMENT = 'equipment'
 
-export type SelectHandler = (globalId: string | null) => void
+export type SelectHandler = (globalIds: string[]) => void
 
 export function webgl2Supported(): boolean {
   try {
@@ -26,6 +26,7 @@ export class Viewer {
   private fragments: OBC.FragmentsManager
   private highlighter: OBF.Highlighter
   private model?: FragmentsModel
+  private selection: OBC.ModelIdMap | null = null
   private selectHandler: SelectHandler = () => {}
 
   constructor(container: HTMLElement) {
@@ -64,10 +65,14 @@ export class Viewer {
       priority: 1,
     })
     this.highlighter.events[SELECT].onHighlight.add(async (map) => {
-      const ids = await this.toGlobalIds(map)
-      this.selectHandler(ids[0] ?? null)
+      this.selection = map
+      this.selectHandler(await this.toGlobalIds(map))
     })
-    this.highlighter.events[SELECT].onClear.add(() => this.selectHandler(null))
+    this.highlighter.events[SELECT].onClear.add(() => {
+      this.selection = null
+      this.selectHandler([])
+    })
+    container.addEventListener('dblclick', () => void this.frameSelection())
   }
 
   onSelect(handler: SelectHandler) {
@@ -87,13 +92,22 @@ export class Viewer {
     void this.world.camera.fitToItems()
   }
 
-  /** Select one element (or clear with null) and optionally frame it. */
-  async select(globalId: string | null, frame = true) {
-    if (!globalId) return this.highlighter.clear(SELECT)
-    const map = await this.toModelIdMap([globalId])
+  /** Select elements (empty list clears) and optionally frame them. */
+  async select(globalIds: string[], frame = true) {
+    const map = await this.toModelIdMap(globalIds)
+    this.selection = map
     if (!map) return this.highlighter.clear(SELECT)
     await this.highlighter.highlightByID(SELECT, map, true, false)
     if (frame) void this.world.camera.fitToItems(map)
+  }
+
+  // Camera moves animate per frame; not awaited (frames pause in hidden tabs).
+  async frameAll() {
+    void this.world.camera.fitToItems()
+  }
+
+  async frameSelection() {
+    if (this.selection) void this.world.camera.fitToItems(this.selection)
   }
 
   async highlightEquipment(globalIds: string[] | null) {

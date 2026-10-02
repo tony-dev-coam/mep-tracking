@@ -6,10 +6,16 @@ import { ModelList } from './components/ModelList'
 import { ModelViewer } from './components/ModelViewer'
 import { ProjectBar } from './components/ProjectBar'
 import { SpatialTree } from './components/SpatialTree'
+import { StoreyNavigator } from './components/StoreyNavigator'
 import { ValidationReport } from './components/ValidationReport'
 import type { Viewer } from './viewer/engine'
 
 const POLL_MS = 2000
+
+function storeysOf(node: SpatialNode | null): SpatialNode[] {
+  if (!node) return []
+  return node.ifc_type === 'IfcBuildingStorey' ? [node] : node.children.flatMap(storeysOf)
+}
 
 function storeyNamesOf(node: SpatialNode | null, out: Record<string, string> = {}) {
   if (!node) return out
@@ -25,14 +31,16 @@ export default function App() {
   const [modelId, setModelId] = useState<string | null>(null)
   const [equipment, setEquipment] = useState<ElementSummary[]>([])
   const [tree, setTree] = useState<SpatialNode | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  // undefined = nothing selected, null = selected but no DB row
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  // Details for a single selection: undefined = none, null = selected but no DB row
   const [selected, setSelected] = useState<Element | null | undefined>(undefined)
+  const [isolatedId, setIsolatedId] = useState<string | null>(null) // storey/space shown alone
   const [highlighting, setHighlighting] = useState(false)
   const viewer = useRef<Viewer | null>(null)
 
   const model = models.find((m) => m.id === modelId) ?? null
   const storeyNames = useMemo(() => storeyNamesOf(tree), [tree])
+  const storeys = useMemo(() => storeysOf(tree), [tree])
 
   useEffect(() => {
     api.projects().then((ps) => {
@@ -65,19 +73,22 @@ export default function App() {
   useEffect(() => {
     setEquipment([])
     setTree(null)
-    setSelectedId(null)
+    setSelectedIds([])
     setSelected(undefined)
+    setIsolatedId(null)
     setHighlighting(false)
     if (!openId) return
     api.equipment(openId).then(setEquipment)
     api.spatialTree(openId).then(setTree).catch(() => setTree(null))
   }, [openId])
 
-  const showElement = useCallback(async (globalId: string | null) => {
-    setSelectedId(globalId)
-    if (!globalId || !openId) return setSelected(undefined)
+  /** Update panels for a selection. Never calls the viewer (3D selections arrive here too). */
+  const showSelection = useCallback(async (ids: string[]) => {
+    setSelectedIds(ids)
+    setSelected(undefined)
+    if (ids.length !== 1 || !openId) return
     try {
-      setSelected(await api.element(openId, globalId))
+      setSelected(await api.element(openId, ids[0]))
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) setSelected(null)
       else throw e
@@ -86,20 +97,64 @@ export default function App() {
 
   const onViewerReady = useCallback((v: Viewer | null) => {
     viewer.current = v
-    v?.onSelect((gid) => void showElement(gid)) // from 3D: update panels, never echo back
-  }, [showElement])
+    v?.onSelect((ids) => void showSelection(ids))
+  }, [showSelection])
 
-  function selectFromSchedule(e: ElementSummary) {
-    void showElement(e.global_id)
-    void viewer.current?.select(e.global_id, e.has_geometry)
+  function select(ids: string[], frame: boolean) {
+    void showSelection(ids)
+    void viewer.current?.select(ids, frame)
   }
 
-  async function isolateNode(node: SpatialNode) {
+  function selectFromSchedule(e: ElementSummary) {
+    select([e.global_id], e.has_geometry)
+  }
+
+  /** Storey or space alone in 3D; the camera stays put. Clicking the shown one again shows all. */
+  async function toggleIsolate(node: SpatialNode) {
     if (!openId) return
+    if (node.global_id === isolatedId) return showAll()
+    setIsolatedId(node.global_id)
     const filter: Record<string, string> =
       node.ifc_type === 'IfcSpace' ? { parent: node.global_id } : { storey: node.global_id }
     await viewer.current?.isolate(await api.globalIds(openId, filter))
   }
+
+  function isolateSelection() {
+    if (!selectedIds.length) return
+    setIsolatedId(null)
+    void viewer.current?.isolate(selectedIds)
+  }
+
+  function hideSelection() {
+    if (selectedIds.length) void viewer.current?.hide(selectedIds)
+  }
+
+  function showAll() {
+    setIsolatedId(null)
+    void viewer.current?.showAll()
+  }
+
+  // Viewport shortcuts (keys from ifc-viewx): ignored while typing or with modifier keys.
+  const shortcuts = useRef<Record<string, () => void>>({})
+  shortcuts.current = {
+    i: isolateSelection,
+    h: hideSelection,
+    a: showAll,
+    f: () => void viewer.current?.frameAll(),
+    F: () => void viewer.current?.frameSelection(),
+    Escape: () => select([], false),
+  }
+  useEffect(() => {
+    if (!openId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target
+      if (t instanceof Element && t.closest('input, textarea, select, [contenteditable="true"]')) return
+      shortcuts.current[e.key]?.()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openId])
 
   async function toggleHighlight() {
     if (!openId) return
@@ -121,7 +176,8 @@ export default function App() {
     setModelId(m.id)
   }
 
-  const selectedEquipment = equipment.some((e) => e.global_id === selectedId) ? selectedId : null
+  const selectedEquipment =
+    selectedIds.length === 1 && equipment.some((e) => e.global_id === selectedIds[0]) ? selectedIds[0] : null
 
   return (
     <div className="app">
@@ -129,21 +185,18 @@ export default function App() {
         onCreate={createProject} onUpload={upload} />
       <nav className="left">
         <ModelList models={models} selectedId={modelId} onSelect={setModelId} />
-        {model && <ValidationReport model={model} />}
-        {openId && <SpatialTree root={tree} onIsolate={isolateNode} />}
+        {model && <ValidationReport model={model} onSelectIds={(ids) => select(ids, true)} />}
+        {openId && <StoreyNavigator storeys={storeys} activeId={isolatedId} onToggle={toggleIsolate} />}
+        {openId && <SpatialTree root={tree} activeId={isolatedId} onIsolate={toggleIsolate} />}
       </nav>
       <main className="center">
         <div className="toolbar" role="toolbar" aria-label="3D view">
           <button aria-pressed={highlighting} disabled={!openId} onClick={toggleHighlight}>
             Highlight equipment
           </button>
-          <button disabled={!selectedId} onClick={() => selectedId && viewer.current?.isolate([selectedId])}>
-            Isolate selection
-          </button>
-          <button disabled={!selectedId} onClick={() => selectedId && viewer.current?.hide([selectedId])}>
-            Hide selection
-          </button>
-          <button disabled={!openId} onClick={() => viewer.current?.showAll()}>Show all</button>
+          <button disabled={!selectedIds.length} onClick={isolateSelection} title="I">Isolate selection</button>
+          <button disabled={!selectedIds.length} onClick={hideSelection} title="H">Hide selection</button>
+          <button disabled={!openId} onClick={showAll} title="A">Show all</button>
         </div>
         <ModelViewer model={model} onReady={onViewerReady} />
       </main>
@@ -152,7 +205,7 @@ export default function App() {
           <EquipmentSchedule equipment={equipment} storeyNames={storeyNames}
             selectedId={selectedEquipment} onSelect={selectFromSchedule} />
         )}
-        <ElementPanel element={selected}
+        <ElementPanel element={selected} count={selectedIds.length}
           storeyName={selected?.storey_global_id ? storeyNames[selected.storey_global_id] : undefined} />
       </aside>
     </div>

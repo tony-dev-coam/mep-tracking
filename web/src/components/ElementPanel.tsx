@@ -1,9 +1,10 @@
 import type { Element } from '../api'
 
-type Props = { element: Element | null | undefined; storeyName?: string }
+type Props = { element: Element | null | undefined; storeyName?: string; count: number }
 
 /** Laid out like a drawing title block: identity first, then property sets as ruled cells. */
-export function ElementPanel({ element, storeyName }: Props) {
+export function ElementPanel({ element, storeyName, count }: Props) {
+  if (count > 1) return <aside className="titleblock empty">{count} elements selected</aside>
   if (element === undefined) {
     return <aside className="titleblock empty">Select equipment in the schedule or the model.</aside>
   }

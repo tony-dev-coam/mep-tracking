@@ -146,3 +146,19 @@ button[aria-pressed='true'] .dot { color: #fff; }
 .titleblock details dl { border-color: var(--rule-strong); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---- storey navigator ---- */
+.storeys-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.storeys-head h2 { margin: 0; }
+.stepper { display: flex; gap: 0.25rem; }
+.stepper button { padding: 0.05rem 0.45rem; font-size: 0.75rem; }
+.storeys ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.storeys li button { width: 100%; text-align: left; }
+.tree button.node[aria-pressed='true'] { background: var(--duct); color: #fff; }
+
+/* ---- clickable validation findings ---- */
+.checks .finding {
+  border: 0; padding: 0; background: none; color: inherit; text-align: left;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+}
+.checks .finding:hover { color: var(--ink); }

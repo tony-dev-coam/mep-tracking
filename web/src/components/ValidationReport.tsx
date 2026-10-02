@@ -2,7 +2,9 @@ import type { IfcModel } from '../api'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-export function ValidationReport({ model }: { model: IfcModel }) {
+type Props = { model: IfcModel; onSelectIds: (ids: string[]) => void }
+
+export function ValidationReport({ model, onSelectIds }: Props) {
   if (!model.validation) return null
   const { summary, checks } = model.validation
   return (
@@ -19,7 +21,10 @@ export function ValidationReport({ model }: { model: IfcModel }) {
             <span className="mark" aria-label={c.severity.toLowerCase()}>
               {c.severity === 'PASS' ? '✓' : c.severity === 'WARNING' ? '!' : '✕'}
             </span>
-            {c.message}
+            {c.global_ids.length > 0 ? (
+              <button className="finding" title="Select these elements"
+                onClick={() => onSelectIds(c.global_ids)}>{c.message}</button>
+            ) : c.message}
           </li>
         ))}
       </ul>

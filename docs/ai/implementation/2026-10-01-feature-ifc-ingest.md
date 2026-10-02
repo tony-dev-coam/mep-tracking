@@ -75,6 +75,11 @@ samples/demo-plant.ifc
 - **Deviation from design:** no separate `idMap.ts`. The fragments GUID API worked, so the mapping is two private methods in `engine.ts`. The `express_id` fallback is unused but proven (localId = express_id).
 - Bundle: ~6.8 MB JS (web-ifc, three, That Open). Follow-up: lazy-load the viewer chunk.
 - Compose: `web` runs `node:24-slim` with `npm ci && vite`, node_modules in a named volume (rolldown has platform binaries), published on **host port 3000** (5173 is often taken by other Vite apps). The API runs with `--reload` in compose; the image CMD doesn't.
+- **Quick wins from ifc-viewx (reference repo `../ifc-viewx`, ideas only, no code copied):**
+  - Selection is a list of GlobalIds everywhere (`Viewer.select(ids, frame)`, `onSelect(ids)`), so findings can select many elements.
+  - Viewer: `frameAll`, `frameSelection`; a double-click on the canvas frames the current selection.
+  - Shortcuts live in `App` behind a ref map (I, H, A, F, Shift+F, Esc), registered only while a model is open. They're skipped when the event target is inside an input/textarea/select/contenteditable or a modifier key is held.
+  - `StoreyNavigator` and `SpatialTree` share `isolatedId`; clicking the active node again calls show all. Isolation never moves the camera. Ceiling cut deferred to slice 3 (needs Clipper and storey elevations).
 - Validation offender messages now carry the count (`"Equipment without manufacturer: 2"`), so the UI renders `message` as is.
 
 ## Demo models

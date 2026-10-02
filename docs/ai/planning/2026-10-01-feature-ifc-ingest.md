@@ -39,6 +39,10 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] 3.4 `EquipmentPanel` (all pages, search, no-geometry badge) ↔ viewer selection; highlight-all-equipment; hide/isolate/show all. *Tests:* panel cases.
 - [x] 3.5 `SpatialTree` + storey/space isolate. *Tests:* tree isolate cases.
 
+- [x] 3.6 Keyboard shortcuts (I isolate, H hide, A show all, Esc deselect, F frame all, Shift+F frame selection), ignored while typing; double-click frames the selection. *Source:* ifc-viewx `controls.ts:768-825`, `main.ts:2569-2686`. *Tests:* App keyboard cases.
+- [x] 3.7 Storey navigator: isolate a storey without moving the camera, click again to release, ▲/▼ to step levels; the spatial tree shares the same state. Ceiling cut deferred to slice 3 (needs Clipper). *Source:* ifc-viewx `plugins/storeys/panel.ts`. *Tests:* navigator cases.
+- [x] 3.8 Validation findings clickable: select and frame the finding's elements; panel shows "N elements selected". Selection becomes a list of GlobalIds. *Source:* ifc-viewx `model-health` finding pattern. *Tests:* finding cases.
+
 ### Phase 4: Integration & polish
 
 - [ ] 4.1 Integration tests on compose stack (defects fixture, corrupt, v2, demo model).
@@ -81,3 +85,5 @@ Buffer: +30% for That Open v3 API surprises.
 *2026-10-02:* Foundation and ingest are done (M1, M2). The backend is one FastAPI service; 73 tests pass at 100% coverage, and a live smoke test through the real process pool processed the demo plant with the expected findings. Scope changes: Go was dropped in favour of all-Python (user decision), the Makefile was dropped, and the demo model is generated rather than downloaded. Next is web + viewer (3.1 spike first), where the main risk is the That Open v3 API surface; the `express_id` fallback is already stored.
 
 *2026-10-02 (later):* Web + viewer done (M3). The trial build confirmed the That Open v3 API: the fragments GUID lookup resolves 59/59 demo elements, and localId equals `express_id`, so the GUID lookup is primary and `express_id` is a proven fallback. Two surprises were fixed: web-ifc had to be pinned to 0.0.77 (That Open 3.4 is built against it; 0.0.78 changed `StreamMeshes`), and the web app is published on host port 3000 because 5173 was already taken on this machine. Remaining: 4.1 compose integration, 4.2 Playwright E2E, 4.3 README.
+
+*2026-10-02 (quick wins):* Added from the ifc-viewx review: keyboard shortcuts plus double-click to frame (3.6), a storey navigator with toggle and stepping shared with the spatial tree (3.7), and clickable validation findings with list selection (3.8). The rest of the ifc-viewx ideas are recorded against slices 3–6 in the requirements roadmap.

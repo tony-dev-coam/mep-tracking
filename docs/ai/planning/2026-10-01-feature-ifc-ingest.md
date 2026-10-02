@@ -8,7 +8,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Milestones
 
-- [ ] M1: Stack boots — `docker compose up` runs postgres, api, ifc-worker, web; migrations applied.
+- [ ] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
 - [ ] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
 - [ ] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
 - [ ] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
@@ -17,20 +17,19 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 1: Foundation
 
-- [ ] 1.1 Repo layout + `docker-compose.yml` (postgres:16, api, ifc-worker, web, `uploads` volume), `.gitignore`, Makefile targets `up`, `test`. *Validation:* `docker compose up` healthy.
-- [ ] 1.2 Go API skeleton: config from env, pgx pool, embedded migrations (`golang-migrate`) with the design schema, `/health`, JSON error helper. *Validation:* migration test against compose Postgres.
-- [ ] 1.3 Python worker skeleton: FastAPI `/health`, `/process` stub, Dockerfile (python:3.12 + `ifcopenshell`). *Validation:* container health.
-- [ ] 1.4 Synthetic fixtures `make_fixtures.py` (clean, defects, assembly, no-geometry element, corrupt). *Tests:* fixture-based worker tests.
+- [ ] 1.1 Repo layout + `docker-compose.yml` (postgres:16, api, web, `uploads` volume), `.gitignore`, Makefile targets `up`, `test`. *Validation:* `docker compose up` healthy.
+- [ ] 1.2 FastAPI skeleton: Dockerfile (python:3.12 + `ifcopenshell`), settings from env, psycopg 3 pool, Alembic migration with the design schema (run on container start), `/health`, `{error}` exception handlers, pytest setup. *Validation:* migration applies; `/health` 200.
+- [ ] 1.4 Synthetic fixtures `make_fixtures.py` (clean, defects, assembly, no-geometry element, corrupt). *Tests:* fixture-based ifc tests.
 - [ ] 1.5 Demo model: pick a public IFC4 MEP sample with storeys/equipment/psets → `samples/`, document source + licence. *Risk:* licence/size.
 
-### Phase 2: Ingest (worker + API)
+### Phase 2: Ingest
 
-- [ ] 2.1 Worker `open_model` + schema check, `is_equipment`, `extract` (express_id, parent/storey incl. assemblies, psets merged, materials, has_geometry). *Tests:* worker classification + extraction cases.
-- [ ] 2.2 Worker `validate` (11 checks, cap 100 ids). *Tests:* validation cases.
-- [ ] 2.3 Worker `store` (DELETE + COPY, one txn, duplicate GlobalId skip) and `/process` wiring (200/422). *Tests:* store cases.
+- [ ] 2.1 `app/ifc/`: `open_model` + schema check, `is_equipment`, `extract` (express_id, parent/storey incl. assemblies, psets merged, materials, has_geometry). *Tests:* ifc classification + extraction cases.
+- [ ] 2.2 `app/ifc/validate.py` (11 checks, cap 100 ids). *Tests:* validation cases.
+- [ ] 2.3 `app/processing.py`: `process_model(model_id)` job — open, extract, validate, then one transaction: DELETE + COPY elements, UPDATE model `processed`; on exception rollback + `failed`. *Tests:* processing cases.
 - [ ] 2.4 API projects (create/list, 409). *Tests:* api project cases.
-- [ ] 2.5 API upload (MaxBytesReader 200 MB, `.ifc` only, stream to `/data/uploads/{id}.ifc`, version increment, 202 + Location) + goroutine → worker → status update; failure cleanup; startup sweep. *Tests:* api upload/status cases.
-- [ ] 2.6 API reads: models list/get, `/file` (ServeContent, 409 unless processed), `/elements` (filters, paging), `/elements/{gid}`, `/global-ids`, `/spatial-tree`. *Tests:* api read cases.
+- [ ] 2.5 Upload route (stream in chunks with 200 MB cap → 413, `.ifc` only, `/data/uploads/{id}.ifc`, version increment, 202 + Location) → `executor.submit(process_model, id)`; startup sweep. *Tests:* api upload/status cases.
+- [ ] 2.6 Read routes: models list/get, `/file` (`FileResponse`, 409 unless processed), `/elements` (filters, paging), `/elements/{gid}`, `/global-ids`, `/spatial-tree`. *Tests:* api read cases.
 
 ### Phase 3: Web + viewer
 
@@ -48,17 +47,17 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Dependencies
 
-- 1.1 → everything. 1.2 schema → 2.3 (worker writes Go-owned tables) and 2.4–2.6.
+- 1.1 → everything. 1.2 schema → 2.3–2.6.
 - 1.4 → 2.1–2.3 tests. 1.5 → 3.1 spike, 4.1.
 - 3.1 decides `idMap` → 3.3–3.5. 2.6 → 3.2–3.5.
-- Worker (2.1–2.3) and API (2.4–2.6) can proceed in parallel once 1.2 lands.
+- IFC logic (2.1–2.2) has no DB dependency and can start right after 1.4.
 
 ## Timeline & Estimates
 
 | Phase | Estimate |
 |---|---|
 | 1 Foundation | 1 day |
-| 2 Ingest | 2 days |
+| 2 Ingest | 1.5 days |
 | 3 Web + viewer | 2.5 days (incl. ½-day spike) |
 | 4 Integration | 1 day |
 
@@ -70,9 +69,9 @@ Buffer: +30% for That Open v3 API surprises.
 - **web-ifc WASM / fragments worker loading in Vite** → serve both from `public/`, pin versions to match `@thatopen/components` peer deps.
 - **IfcOpenShell wheel on arm64 Docker** → use `ifcopenshell` from PyPI (has manylinux aarch64 wheels); fall back to conda image if not.
 - **Demo model lacks psets/storeys** → fixtures cover validation; pick a model with MEP content.
-- **Worker and Go disagree on schema** → worker tests run against the migrated schema from the API's migrations.
+- **CPU-heavy IfcOpenShell blocks the API** → runs in a separate process (`ProcessPoolExecutor`), never in the event loop.
 
 ## Resources Needed
 
-- Go 1.27, Node 24, Docker (local Python is 3.9, so the worker runs and is tested in its 3.12 container).
-- Libraries: pgx, golang-migrate; FastAPI, ifcopenshell, psycopg 3; Vite, React, `@thatopen/components` 3.4, `@thatopen/components-front`, `@thatopen/fragments` 3.4, `web-ifc`, `three`, Vitest, Playwright.
+- Node 24, Docker (local Python is 3.9, so the API runs and is tested in its 3.12 container).
+- Libraries: FastAPI, uvicorn, ifcopenshell, psycopg 3 (+ pool), Alembic, pytest, httpx; Vite, React, `@thatopen/components` 3.4, `@thatopen/components-front`, `@thatopen/fragments` 3.4, `web-ifc`, `three`, Vitest, Playwright.

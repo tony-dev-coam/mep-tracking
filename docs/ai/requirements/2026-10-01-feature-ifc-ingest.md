@@ -86,27 +86,27 @@ Source spec: `openbim_assetops_requirements.md` (§4.1, §5, §6, §9, §10, §2
 - [ ] "Highlight equipment", hide, isolate, and show-all work.
 - [ ] Version 2 upload leaves version 1 data and viewer intact.
 - [ ] Corrupt upload ends `failed` with message; API stays healthy.
-- [ ] `docker compose up` from clean checkout brings up web, api, ifc-worker, postgres.
+- [ ] `docker compose up` from clean checkout brings up web, api, postgres.
 
 ## Constraints & Assumptions
 
 **Technical constraints (decided)**
 
-- Stack: React + TypeScript (Vite), **That Open Engine** (`@thatopen/components`, `@thatopen/components-front`, `@thatopen/fragments`, `web-ifc`) on Three.js, Go REST API, Python + IfcOpenShell service, PostgreSQL, Docker Compose.
+- Stack: React + TypeScript (Vite), **That Open Engine** (`@thatopen/components`, `@thatopen/components-front`, `@thatopen/fragments`, `web-ifc`) on Three.js, **all backend logic in Python** (one FastAPI service with IfcOpenShell), PostgreSQL, Docker Compose.
 - **Viewer loading:** browser downloads the original IFC from the API and converts it to fragments client-side with That Open's IFC loader. No server-side geometry. Caching fragments is Phase 2.
 - **Element identity:** IFC GlobalId is the join key between viewer and DB (spec §10, §13).
-- **Async:** no Redis/queue. Go saves file to Docker volume, sets `processing`, goroutine calls Python over HTTP, sets final status; frontend polls.
-- Python (FastAPI) validates/extracts and writes `ifc_elements` directly; Go owns schema/migrations and status.
+- **Async:** no Redis/queue. The FastAPI service saves the file to a Docker volume, sets `processing`, and submits the job to an in-process `ProcessPoolExecutor`. The job validates, extracts, writes elements and sets the final status. Frontend polls.
+- One Python service owns REST, IFC processing, schema/migrations (Alembic) and status. No Go.
 - **Equipment rule:** `IfcDistributionElement` descendant and not `IfcFlowSegment`/`IfcFlowFitting`.
 - Storage: local Docker volume.
 
 **Assumptions (accepted)**
 
 - No auth in MVP. Projects unique by name. Upload limit 200 MB.
-- Validation ERRORs don't fail processing; only parse failure / unsupported schema / worker error → `failed`.
+- Validation ERRORs don't fail processing; only parse failure / unsupported schema / processing exception → `failed`.
 - Demo model: public IFC4 model with storeys, MEP equipment, psets (picked in planning). Tests use synthetic IFCs generated with IfcOpenShell.
 - No delete of projects/models in slice 1.
-- Single-user demo load: the worker processes one model at a time (uvicorn single worker); concurrent uploads wait in their goroutines up to the 10-min timeout.
+- Single-user demo load: one processing slot (`ProcessPoolExecutor(max_workers=1)`); concurrent uploads queue in the executor and stay `processing` until their turn.
 - Feature key kept as `ifc-ingest` (docs/task already created); scope now includes the viewer.
 
 ## Questions & Open Items

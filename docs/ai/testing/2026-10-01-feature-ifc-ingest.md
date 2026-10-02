@@ -8,20 +8,20 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Test Coverage Goals
 
-- Unit: 100% of new logic in `ifc-worker` (validate/extract/classify) and Go handlers/status lifecycle; `main` wiring excluded.
-- Integration: Go API + real Postgres + real worker via docker compose (critical paths + failure modes).
+- Unit: 100% of new logic in `api/` (IFC validate/extract/classify, processing job, routes); app startup wiring excluded.
+- Integration: FastAPI app + real Postgres via docker compose (critical paths + failure modes).
 - E2E: upload → poll → report in the browser, one manual run recorded per release.
 
 ## Unit Tests
 
-### ifc-worker: equipment classification
+### ifc: equipment classification
 
 - [ ] `IfcPump`, `IfcUnitaryEquipment`, `IfcFlowTerminal`, `IfcValve` → equipment
 - [ ] `IfcDuctSegment`, `IfcPipeFitting` (segment/fitting subtypes) → not equipment
 - [ ] `IfcWall`, `IfcSpace` → not equipment
 - [ ] IFC2X3 equivalents (`IfcFlowMovingDevice` with ObjectType) classified the same
 
-### ifc-worker: extraction
+### ifc: extraction
 
 - [ ] Spatial tree Project → Site → Building → Storey(×2) → Space reconstructed via `parent_global_id`
 - [ ] Equipment in a Space gets `storey_global_id` of the enclosing storey
@@ -32,30 +32,31 @@ description: Define testing approach, test cases, and quality assurance
 - [ ] `express_id` equals the STEP id of the source entity
 - [ ] Part of an `IfcElementAssembly` contained in a storey gets that storey's `storey_global_id`
 
-### ifc-worker: validation
+### ifc: validation
 
 - [ ] Clean fixture → all checks PASS
 - [ ] Defect fixture → exactly: 2 `missing_manufacturer`, 1 `missing_container`, 1 `missing_properties`, `duplicate_tag` count 2, each with the right `global_ids`
 - [ ] No IfcBuilding → `building` ERROR; 0 storeys → `storeys` WARNING
 - [ ] Model with no equipment → `no_equipment` WARNING
 - [ ] `global_ids` capped at 100
-- [ ] Unsupported schema / non-IFC file → fatal error (422 from `/process`)
+- [ ] Unsupported schema / non-IFC file → fatal error raised (job marks model `failed`)
 
-### ifc-worker: store
+### processing: store + job
 
 - [ ] Rows inserted with JSONB properties queryable (`properties->'Pset_ManufacturerTypeInformation'->>'Manufacturer'`)
 - [ ] Re-running for the same `model_id` replaces rows (no duplicates)
 - [ ] Duplicate GlobalId in file → first kept, insert does not fail
 
-### api (Go)
+### api routes (pytest + httpx `TestClient`)
 
 - [ ] Create project; duplicate name → 409
 - [ ] Upload non-`.ifc` → 400; > 200 MB → 413
 - [ ] Upload → 202, row `processing`, file at `{model_id}.ifc`
 - [ ] Versions increment per project (1, 2) and are independent across projects
-- [ ] Worker 200 → `processed` with schema/count/validation stored
-- [ ] Worker 422 / 5xx / timeout → `failed` with error, and the model's `ifc_elements` deleted
-- [ ] `/process` called with `model_id` only; worker opens `/data/uploads/{model_id}.ifc`
+- [ ] Job success → `processed` with schema/count/validation stored, elements committed in the same transaction
+- [ ] Job exception → `failed` with error; no `ifc_elements` rows left (transaction rolled back)
+- [ ] Job opens `/data/uploads/{model_id}.ifc` derived from the id
+- [ ] Upload submits job to the executor (executor stubbed to run inline in tests)
 - [ ] Upload 202 has `Location` header; all errors return `{error}`
 - [ ] Startup sweep marks stale `processing` as `failed: interrupted`
 - [ ] `/global-ids` applies the same filters, returns uncapped `string[]`
@@ -96,15 +97,14 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Test Data
 
-- `ifc-worker/tests/fixtures/make_fixtures.py`: builds `clean.ifc` and `defects.ifc` with `ifcopenshell.api` (deterministic, committed generator, files generated in a pytest session fixture).
+- `api/tests/fixtures/make_fixtures.py`: builds `clean.ifc` and `defects.ifc` with `ifcopenshell.api` (deterministic, committed generator, files generated in a pytest session fixture).
 - `corrupt.ifc`: truncated text file.
 - Demo model: public IFC4 MEP sample (selected in planning), stored in `samples/`.
-- Test DB: Postgres from compose; Go tests use a per-test schema or truncate between tests.
+- Test DB: Postgres from compose, Alembic-migrated once per session; tables truncated between tests.
 
 ## Test Reporting & Coverage
 
-- Python: `pytest --cov=ifc_worker --cov-report=term-missing`
-- Go: `go test ./... -coverprofile=cover.out && go tool cover -func=cover.out`
+- `docker compose run --rm api pytest --cov=app --cov-report=term-missing`
 - Record results and gaps here after Phase 8.
 
 ## Manual Testing
@@ -114,7 +114,7 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Performance Testing
 
-- Demo model processing time logged by the worker; target < 30 s.
+- Demo model processing time logged by the job; target < 30 s.
 
 ## Bug Tracking
 

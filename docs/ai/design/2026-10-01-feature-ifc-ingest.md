@@ -10,30 +10,33 @@ description: Define the technical architecture, components, and data models
 
 ```mermaid
 graph TD
-  Web[React + TS web] -->|REST, polls status| API[Go API]
+  Web[React + TS web] -->|REST, polls status| API
   Web --> Viewer[That Open viewer<br/>components + fragments + web-ifc<br/>on Three.js]
   Viewer -->|GET /api/models/:id/file| API
-  API -->|save file| Vol[(uploads volume)]
-  API -->|migrations, projects, ifc_models| PG[(PostgreSQL)]
-  API -->|goroutine: POST /process| Worker[Python ifc-worker<br/>FastAPI + IfcOpenShell]
-  Worker -->|read file| Vol
-  Worker -->|insert ifc_elements| PG
+  subgraph API[api: Python FastAPI service]
+    Routes[REST routes] -->|submit model_id| Pool[ProcessPoolExecutor<br/>max_workers=1]
+    Pool --> Job[process_model<br/>IfcOpenShell validate + extract]
+  end
+  Routes -->|save file| Vol[(uploads volume)]
+  Job -->|read file| Vol
+  Routes -->|projects, ifc_models, reads| PG[(PostgreSQL)]
+  Job -->|ifc_elements + final status, one txn| PG
 ```
 
 ```mermaid
 sequenceDiagram
   participant W as Web
-  participant A as Go API
-  participant P as ifc-worker
+  participant A as FastAPI routes
+  participant P as process_model (pool process)
   participant D as Postgres
   W->>A: POST /api/projects/:id/models (multipart)
   A->>A: write file to /data/uploads/{model_id}.ifc
   A->>D: INSERT ifc_models (status=processing, version=max+1)
   A-->>W: 202 {id, status: processing}
-  A->>P: POST /process {model_id} (goroutine)
-  P->>D: DELETE + INSERT ifc_elements (one txn)
-  P-->>A: 200 {schema, element_count, validation} | 422 {error}
-  A->>D: UPDATE ifc_models status=processed|failed (on failed: DELETE its ifc_elements)
+  A->>P: executor.submit(process_model, model_id)
+  P->>P: open, validate, extract (IfcOpenShell)
+  P->>D: txn: DELETE + COPY ifc_elements, UPDATE model processed
+  P->>D: on exception: rollback, UPDATE model failed + error
   loop every 2s while processing
     W->>A: GET /api/models/:id
   end
@@ -42,10 +45,9 @@ sequenceDiagram
 | Component | Responsibility |
 |---|---|
 | `web/` | Vite + React + TS. Project picker, upload, model list, validation report, spatial tree, **3D viewer + equipment panel**. |
-| `api/` | Go (stdlib `net/http` routing, `pgx`). REST, file intake, model status lifecycle, migrations. |
-| `ifc-worker/` | Python 3.12, FastAPI, IfcOpenShell. Validate, extract, classify equipment, bulk insert. |
+| `api/` | **Python 3.12, FastAPI, IfcOpenShell, psycopg 3, Alembic.** All backend logic: REST, file intake, background IFC processing (validate, extract, classify, bulk insert), status lifecycle, migrations. |
 | `postgres` | PostgreSQL 16. |
-| `docker-compose.yml` | Wires all four + `uploads` volume. |
+| `docker-compose.yml` | Wires web, api, postgres + `uploads` volume. |
 
 ## Data Models
 
@@ -129,7 +131,7 @@ CREATE INDEX ON ifc_elements USING gin (properties);
 
 ## API Design
 
-Go API (JSON, no auth):
+FastAPI (JSON, no auth; OpenAPI docs at `/docs`):
 
 | Method | Path | Notes |
 |---|---|---|
@@ -138,7 +140,7 @@ Go API (JSON, no auth):
 | POST | `/api/projects/{id}/models` | multipart `file`; `.ifc` only, ≤ 200 MB (413) → 202 model |
 | GET | `/api/projects/{id}/models` | list, newest version first |
 | GET | `/api/models/{id}` | model incl. `status`, `error`, `validation` (the polling target) |
-| GET | `/api/models/{id}/file` | original IFC (`application/octet-stream`), only when `processed`; served with `http.ServeContent` (Range/ETag) |
+| GET | `/api/models/{id}/file` | original IFC (`application/octet-stream`), only when `processed`; Starlette `FileResponse` (ETag, Range) |
 | GET | `/api/models/{id}/elements/{globalId}` | one element with psets/materials; 404 if absent (viewer click → details) |
 | GET | `/api/models/{id}/spatial-tree` | nested tree of spatial elements, each with element counts |
 | GET | `/api/models/{id}/global-ids` | same filters as `/elements` (`equipment`, `storey`, `parent`, `type`) → `string[]`, uncapped. Feeds isolate/highlight sets |
@@ -146,25 +148,38 @@ Go API (JSON, no auth):
 
 Errors use one shape: `{"error": "message"}`. Upload 202 sets `Location: /api/models/{id}`.
 
-Internal Go → worker:
-
-- `POST /process` `{model_id}` (worker derives the path, so it never opens a caller-supplied path) → 200 `{ifc_schema, element_count, validation}` or 422 `{error}`. Synchronous. Go client timeout 10 min.
-- `GET /health`.
+- `GET /health` → 200 when DB reachable.
+- Pydantic response models per route; IFC-specific types never leak into responses.
 
 ## Component Breakdown
 
-**ifc-worker (Python)**
+**api (Python package `app/`)**
+
+```text
+api/
+  app/
+    main.py          # FastAPI app, lifespan: DB pool, executor, startup sweep
+    db.py            # psycopg pool + small query helpers
+    routes/          # projects.py, models.py, elements.py
+    processing.py    # process_model(model_id): runs in the pool process
+    ifc/             # open_model, extract, is_equipment, validate (pure, no DB)
+  migrations/        # Alembic (raw SQL via op.execute)
+  tests/
+```
+
+`app/ifc/`
 - `open_model(path)` → schema check (fatal).
 - `extract(model)` → rows: walk `IfcProduct`s; `express_id = el.id()`; spatial parent via `ifcopenshell.util.element.get_container`, falling back to `get_aggregate` (for spatial elements, and for parts of assemblies, continue up until a spatial element is reached); storey = nearest `IfcBuildingStorey` ancestor; `has_geometry = el.Representation is not None`; psets via `ifcopenshell.util.element.get_psets` (occurrence merged over type); materials via `get_materials`.
 - `is_equipment(el)` → `el.is_a("IfcDistributionElement") and not (el.is_a("IfcFlowSegment") or el.is_a("IfcFlowFitting"))`.
 - `validate(model, rows)` → report from the table above.
-- `store(conn, model_id, rows)` → one transaction: `DELETE` existing rows for the model, then `COPY` insert (idempotent retries).
 
-**api (Go)**
-- `migrations/` embedded SQL, applied at startup via `golang-migrate`.
-- Upload handler streams to disk with `http.MaxBytesReader`, then inserts the model and spawns `go process(modelID)`.
-- Startup: `UPDATE ifc_models SET status='failed', error='interrupted' WHERE status='processing'` (assumes a single API instance).
-- On worker error/timeout: set `failed` and `DELETE FROM ifc_elements WHERE model_id=$1` (the worker may finish writing after Go gives up).
+`processing.py`
+- `process_model(model_id)` runs in the pool process with its own DB connection. Path derived as `/data/uploads/{model_id}.ifc`. It calls `open_model` → `extract` → `validate`, then in **one transaction**: `DELETE` existing rows for the model, `COPY` new rows (duplicate GlobalIds skipped), and `UPDATE ifc_models SET status='processed', ifc_schema, element_count, validation, processed_at`. Any exception → rollback, then `UPDATE … status='failed', error=<message>`. Because elements and status commit together, no orphan rows are possible.
+
+Routes
+- Upload streams `UploadFile` to disk in 1 MB chunks, aborting with 413 past 200 MB (also rejects early on `Content-Length`). It then inserts the model and calls `executor.submit(process_model, id)`.
+- Lifespan startup: Alembic `upgrade head` runs in the container entrypoint. Then `UPDATE ifc_models SET status='failed', error='interrupted' WHERE status='processing'` (assumes a single API instance).
+- Sync DB calls inside `def` routes (FastAPI runs them in its threadpool). Async isn't needed for this load.
 
 **web (React)**
 - `ProjectPicker`, `UploadForm`, `ModelList` (polls every 2 s while any model is `processing`), `ValidationReport`, `SpatialTree`. Plain `fetch`; no state library.
@@ -185,9 +200,9 @@ Internal Go → worker:
 
 | Decision | Chosen | Alternatives | Why |
 |---|---|---|---|
-| Async | Goroutine + client polling | Redis queue; Postgres job table | Fewest moving parts. Restart recovery covered by the startup sweep. Revisit when processing must survive restarts or scale out. |
-| Go↔Python | Worker HTTP service | Subprocess; worker polling DB | Clean service separation; each side testable alone. |
-| Who writes elements | Python, direct to PG | Return JSON to Go | Avoids shipping large payloads over HTTP. Go still owns schema and status. |
+| Backend language | Python only | Go API + Python worker | One language and one service; IfcOpenShell is Python anyway. Fewer containers, no internal HTTP contract. |
+| Async | In-process `ProcessPoolExecutor` + client polling | Redis/Celery; Postgres job table; `BackgroundTasks` | Separate process keeps CPU-heavy parsing off the API's GIL. Restart recovery is covered by the startup sweep. Revisit when processing must survive restarts or scale out. |
+| DB access | psycopg 3 + SQL, Alembic migrations | SQLAlchemy ORM | Schema is small and query-shaped (JSONB, COPY). Raw SQL keeps COPY and GIN queries direct. |
 | Storage | Docker volume | MinIO/S3 | Deferred to Phase 2 cloud deployment. |
 | Spatial model | Rows in `ifc_elements` | Separate `spatial_locations` | One table, one query path. Split out when 2D/PostGIS needs it. |
 | Viewer geometry | Browser converts IFC → fragments (That Open `IfcLoader`) | Server-side conversion + cached `.frag` | No extra service; demo model is small. Fragment caching is Phase 2 large-model optimization. |
@@ -201,5 +216,5 @@ Internal Go → worker:
 - Performance: demo model (~2k elements) processed in < 30 s; elements inserted via `COPY`. Viewer: demo model loaded in < 15 s, interactive frame rate on a laptop GPU.
 - Compatibility: WebGL2 required; viewer shows a message otherwise.
 - Upload: file streamed to disk, not buffered in memory; 200 MB cap.
-- Reliability: worker failure or timeout → `failed` with message; reprocessing is idempotent.
-- Security: only `.ifc` extension accepted, and files saved under a server-generated name (`{model_id}.ifc`), so no client path is used. Worker is not exposed outside the compose network.
+- Reliability: processing exception → `failed` with message, elements rolled back; reprocessing is idempotent.
+- Security: only `.ifc` extension accepted, and files saved under a server-generated name (`{model_id}.ifc`), so no client path is used. Postgres is not exposed outside the compose network.

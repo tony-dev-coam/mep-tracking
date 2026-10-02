@@ -49,6 +49,14 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] 4.2 Playwright E2E (upload → processed → viewer round-trip via test hook).
 - [x] 4.3 README: positioning, architecture diagram, run instructions, demo model credit.
 
+### Phase 5: Follow-ups from implementation check
+
+- [ ] 5.1 Recover from a crashed processing worker: done-callback marks the model failed; recreate executor on `BrokenProcessPool` (check #1, high).
+- [ ] 5.2 Show upload errors (400/404/413) in the UI (check #2).
+- [ ] 5.3 Ignore stale equipment/tree/element responses on fast switching (check #3).
+- [ ] 5.4 Lazy-load the viewer engine chunk (check #4).
+- [ ] 5.5 Low-severity polish: upload date, highlight colour, reuse equipment ids, isolate state after apply, `onReady` ref (checks #5–8, #10). #9 deferred until a large model needs it.
+
 ## Dependencies
 
 - 1.1 → everything. 1.2 schema → 2.3–2.6.

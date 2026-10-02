@@ -34,7 +34,12 @@ def client(db, tmp_path, monkeypatch):
 
     from app.main import app
 
+    class InlineExecutor:  # run jobs synchronously so tests see the final status
+        def submit(self, fn, *args):
+            fn(*args)
+
     with TestClient(app) as c:
+        app.state.executor = InlineExecutor()
         yield c
 
 

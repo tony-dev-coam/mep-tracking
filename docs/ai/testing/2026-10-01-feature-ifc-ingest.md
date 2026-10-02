@@ -16,57 +16,57 @@ description: Define testing approach, test cases, and quality assurance
 
 ### ifc: equipment classification
 
-- [ ] `IfcPump`, `IfcUnitaryEquipment`, `IfcFlowTerminal`, `IfcValve` → equipment
-- [ ] `IfcDuctSegment`, `IfcPipeFitting` (segment/fitting subtypes) → not equipment
-- [ ] `IfcWall`, `IfcSpace` → not equipment
-- [ ] IFC2X3 equivalents (`IfcFlowMovingDevice` with ObjectType) classified the same
+- [x] `IfcPump`, `IfcUnitaryEquipment`, `IfcFlowTerminal`, `IfcValve` → equipment
+- [x] `IfcDuctSegment`, `IfcPipeFitting` (segment/fitting subtypes) → not equipment
+- [x] `IfcWall`, `IfcSpace` → not equipment
+- [x] IFC2X3 equivalents (`IfcFlowMovingDevice` with ObjectType) classified the same
 
 ### ifc: extraction
 
-- [ ] Spatial tree Project → Site → Building → Storey(×2) → Space reconstructed via `parent_global_id`
-- [ ] Equipment in a Space gets `storey_global_id` of the enclosing storey
-- [ ] Property sets from type object merged under occurrence values (occurrence wins)
-- [ ] Materials extracted for element with single material and with a layer set
-- [ ] Element with no container → `parent_global_id` null
-- [ ] `has_geometry` true for element with Representation, false without
-- [ ] `express_id` equals the STEP id of the source entity
-- [ ] Part of an `IfcElementAssembly` contained in a storey gets that storey's `storey_global_id`
+- [x] Spatial tree Project → Site → Building → Storey(×2) → Space reconstructed via `parent_global_id`
+- [x] Equipment in a Space gets `storey_global_id` of the enclosing storey
+- [x] Property sets from type object merged under occurrence values (occurrence wins)
+- [x] Materials extracted for element with a single material (layer set not fixture-covered; `get_materials` flattens it)
+- [x] Element with no container → `parent_global_id` null
+- [x] `has_geometry` true for element with Representation, false without
+- [x] `express_id` equals the STEP id of the source entity
+- [x] Part of an `IfcElementAssembly` contained in a storey gets that storey's `storey_global_id`
 
 ### ifc: validation
 
-- [ ] Clean fixture → all checks PASS
-- [ ] Defect fixture → exactly: 2 `missing_manufacturer`, 1 `missing_container`, 1 `missing_properties`, `duplicate_tag` count 2, each with the right `global_ids`
-- [ ] No IfcBuilding → `building` ERROR; 0 storeys → `storeys` WARNING
-- [ ] Model with no equipment → `no_equipment` WARNING
-- [ ] `global_ids` capped at 100
-- [ ] Unsupported schema / non-IFC file → fatal error raised (job marks model `failed`)
+- [x] Clean fixture → all checks PASS
+- [x] Defect fixture → exactly: 2 `missing_manufacturer`, 1 `missing_container`, 1 `missing_properties`, `duplicate_tag` count 2, each with the right `global_ids`
+- [x] No IfcBuilding → `building` ERROR; 0 storeys → `storeys` WARNING
+- [x] Model with no equipment → `no_equipment` WARNING
+- [x] `global_ids` capped at 100
+- [x] Unsupported schema / non-IFC file → fatal error raised (job marks model `failed`)
 
 ### processing: store + job
 
-- [ ] Rows inserted with JSONB properties queryable (`properties->'Pset_ManufacturerTypeInformation'->>'Manufacturer'`)
-- [ ] Re-running for the same `model_id` replaces rows (no duplicates)
-- [ ] Duplicate GlobalId in file → first kept, insert does not fail
+- [x] Rows inserted with JSONB properties queryable (`properties->'Pset_ManufacturerTypeInformation'->>'Manufacturer'`)
+- [x] Re-running for the same `model_id` replaces rows (no duplicates)
+- [x] Duplicate GlobalId in file → first kept, insert does not fail
 
 ### api routes (pytest + httpx `TestClient`)
 
-- [ ] Create project; duplicate name → 409
-- [ ] Upload non-`.ifc` → 400; > 200 MB → 413
-- [ ] Upload → 202, row `processing`, file at `{model_id}.ifc`
-- [ ] Versions increment per project (1, 2) and are independent across projects
-- [ ] Job success → `processed` with schema/count/validation stored, elements committed in the same transaction
-- [ ] Job exception → `failed` with error; no `ifc_elements` rows left (transaction rolled back)
-- [ ] Job opens `/data/uploads/{model_id}.ifc` derived from the id
-- [ ] Upload submits job to the executor (executor stubbed to run inline in tests)
-- [ ] Upload 202 has `Location` header; all errors return `{error}`
-- [ ] Startup sweep marks stale `processing` as `failed: interrupted`
-- [ ] `/global-ids` applies the same filters, returns uncapped `string[]`
-- [ ] Elements endpoint filters (`equipment`, `storey`, `type`) and pagination limits (max 1000)
-- [ ] Spatial-tree endpoint nests correctly
+- [x] Create project; duplicate name → 409
+- [x] Upload non-`.ifc` → 400; over limit → 413, no file or row left (limit lowered via `MAX_UPLOAD_MB` in test)
+- [x] Upload → 202, row `processing`, file at `{model_id}.ifc`
+- [x] Versions increment per project (1, 2) and are independent across projects
+- [x] Job success → `processed` with schema/count/validation stored, elements committed in the same transaction
+- [x] Job exception → `failed` with error; no `ifc_elements` rows left (transaction rolled back)
+- [x] Job opens `/data/uploads/{model_id}.ifc` derived from the id
+- [x] Upload submits job to the executor (executor stubbed to run inline in tests)
+- [x] Upload 202 has `Location` header; all errors return `{error}`
+- [x] Startup sweep marks stale `processing` as `failed: interrupted`
+- [x] `/global-ids` applies the same filters, returns uncapped `string[]`
+- [x] Elements endpoint filters (`equipment`, `storey`, `type`) and pagination limits (max 1000)
+- [x] Spatial-tree endpoint nests correctly
 
 ### api: file + element lookup
 
-- [ ] `/models/{id}/file` returns bytes for `processed`, 409 for `processing`/`failed`, 404 unknown
-- [ ] `/models/{id}/elements/{globalId}` returns psets; 404 for unknown GlobalId
+- [x] `/models/{id}/file` returns bytes for `processed`, 409 for `processing`/`failed`, 404 unknown
+- [x] `/models/{id}/elements/{globalId}` returns psets; 404 for unknown GlobalId
 
 ### web: viewer logic (Vitest, That Open mocked at module boundary)
 
@@ -103,6 +103,8 @@ description: Define testing approach, test cases, and quality assurance
 - Test DB: Postgres from compose, Alembic-migrated once per session; tables truncated between tests.
 
 ## Test Reporting & Coverage
+
+**Backend (2026-10-02):** `docker compose run --rm api pytest -q --cov=app` → 73 passed, **100%** line coverage of `app/` (257 statements). Manual smoke: demo-plant.ifc uploaded via HTTP through the real `ProcessPoolExecutor` → `processed`, 47 elements, 29 equipment, findings = planted defects.
 
 - `docker compose run --rm api pytest --cov=app --cov-report=term-missing`
 - Record results and gaps here after Phase 8.

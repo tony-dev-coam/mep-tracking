@@ -28,6 +28,10 @@ api/
   alembic.ini, migrations/ 0001_init.py = design schema (raw SQL)
   app/main.py             FastAPI app, lifespan opens the psycopg pool, {error} handler, /health
   app/db.py               pool + fetch_one / fetch_all
+  app/ifc/extract.py      open_model (FatalIfcError), extract -> rows, is_equipment, spatial_parent
+  app/ifc/validate.py     11 checks -> {summary, checks}
+  app/processing.py       process_model(model_id): one txn for elements + status; never raises
+  app/routes/             projects.py, models.py (upload/list/get/file), elements.py (list, one, global-ids, spatial-tree)
   samples_demo_plant.py   demo model generator (reuses the test Builder)
   tests/conftest.py       mep_test DB + migrations per session; `db`, `client`, `ifc` fixtures
   tests/fixtures/make_fixtures.py  Builder + synthetic models
@@ -41,6 +45,15 @@ samples/demo-plant.ifc
 - IFC2X3 fixture uses raw `create_entity`, because `ifcopenshell.api` requires owner-history setup for IFC2X3.
 - Corrupt and unsupported-schema files fail at `ifcopenshell.open` (`Error: Unable to parse IFC SPF header`, `SchemaError`). `open_model` maps both to the fatal error.
 - `Builder.geometry(size, at)` places an extruded box, which is enough for the viewer and 2D later.
+
+- `process_model` deletes elements on failure too, so a model that failed after an earlier success has no stale rows.
+- Duplicate GlobalIds: `store` keeps the first; validation reports all.
+- Upload streams to `{UPLOAD_DIR}/{uuid}.ifc` before the DB insert, so an over-limit upload leaves no row. Starlette has already spooled the multipart body, so the cap bounds disk writes, not network receive.
+- `MAX_UPLOAD_MB` env (default 200) exists so tests can exercise 413.
+- Executor: `ProcessPoolExecutor(max_workers=1, spawn)`. Tests swap `app.state.executor` for an inline one.
+- Version race on concurrent uploads to one project → UNIQUE violation (500). Marked `ponytail:`; retry if multi-user.
+- **Deviation from design:** routes return plain dict rows rather than Pydantic response models. The OpenAPI schemas are therefore untyped; add response models if the API gets external consumers.
+- `httpx2` is used for TestClient (Starlette deprecates `httpx`).
 
 ## Demo models
 

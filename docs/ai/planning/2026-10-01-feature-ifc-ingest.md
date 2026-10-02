@@ -9,7 +9,7 @@ description: Break down work into actionable tasks and estimate timeline
 ## Milestones
 
 - [x] M1: Stack boots — `docker compose up` runs postgres, api, web; migrations applied.
-- [ ] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
+- [x] M2: Ingest works — upload → `processed` with validation report and elements in Postgres.
 - [ ] M3: Viewer works — model renders; equipment list ↔ 3D; tree isolate; hide/isolate/highlight.
 - [ ] M4: Verified — tests per testing doc pass; demo model end-to-end; README run instructions.
 
@@ -24,12 +24,12 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 2: Ingest
 
-- [ ] 2.1 `app/ifc/`: `open_model` + schema check, `is_equipment`, `extract` (express_id, parent/storey incl. assemblies, psets merged, materials, has_geometry). *Tests:* ifc classification + extraction cases.
-- [ ] 2.2 `app/ifc/validate.py` (11 checks, cap 100 ids). *Tests:* validation cases.
-- [ ] 2.3 `app/processing.py`: `process_model(model_id)` job — open, extract, validate, then one transaction: DELETE + COPY elements, UPDATE model `processed`; on exception rollback + `failed`. *Tests:* processing cases.
-- [ ] 2.4 API projects (create/list, 409). *Tests:* api project cases.
-- [ ] 2.5 Upload route (stream in chunks with 200 MB cap → 413, `.ifc` only, `/data/uploads/{id}.ifc`, version increment, 202 + Location) → `executor.submit(process_model, id)`; startup sweep. *Tests:* api upload/status cases.
-- [ ] 2.6 Read routes: models list/get, `/file` (`FileResponse`, 409 unless processed), `/elements` (filters, paging), `/elements/{gid}`, `/global-ids`, `/spatial-tree`. *Tests:* api read cases.
+- [x] 2.1 `app/ifc/`: `open_model` + schema check, `is_equipment`, `extract` (express_id, parent/storey incl. assemblies, psets merged, materials, has_geometry). *Tests:* ifc classification + extraction cases.
+- [x] 2.2 `app/ifc/validate.py` (11 checks, cap 100 ids). *Tests:* validation cases.
+- [x] 2.3 `app/processing.py`: `process_model(model_id)` job — open, extract, validate, then one transaction: DELETE + COPY elements, UPDATE model `processed`; on exception rollback + `failed`. *Tests:* processing cases.
+- [x] 2.4 API projects (create/list, 409). *Tests:* api project cases.
+- [x] 2.5 Upload route (stream in chunks with 200 MB cap → 413, `.ifc` only, `/data/uploads/{id}.ifc`, version increment, 202 + Location) → `executor.submit(process_model, id)`; startup sweep. *Tests:* api upload/status cases.
+- [x] 2.6 Read routes: models list/get, `/file` (`FileResponse`, 409 unless processed), `/elements` (filters, paging), `/elements/{gid}`, `/global-ids`, `/spatial-tree`. *Tests:* api read cases.
 
 ### Phase 3: Web + viewer
 
@@ -75,3 +75,7 @@ Buffer: +30% for That Open v3 API surprises.
 
 - Node 24, Docker (local Python is 3.9, so the API runs and is tested in its 3.12 container).
 - Libraries: FastAPI, uvicorn, ifcopenshell, psycopg 3 (+ pool), Alembic, pytest, httpx; Vite, React, `@thatopen/components` 3.4, `@thatopen/components-front`, `@thatopen/fragments` 3.4, `web-ifc`, `three`, Vitest, Playwright.
+
+## Progress Summary
+
+*2026-10-02:* Foundation and ingest are done (M1, M2). The backend is one FastAPI service; 73 tests pass at 100% coverage, and a live smoke test through the real process pool processed the demo plant with the expected findings. Scope changes: Go was dropped in favour of all-Python (user decision), the Makefile was dropped, and the demo model is generated rather than downloaded. Next is web + viewer (3.1 spike first), where the main risk is the That Open v3 API surface; the `express_id` fallback is already stored.
